@@ -20,28 +20,56 @@ import { firebaseConfig, RECAPTCHA_ENTERPRISE_SITE_KEY } from './config';
 import {
   initializeAppCheck,
   ReCaptchaEnterpriseProvider,
-} from "firebase/app-check";
-import { getVertexAI, getGenerativeModel } from "firebase/vertexai-preview";
+} from 'firebase/app-check';
+import { getVertexAI, getGenerativeModel } from 'firebase/vertexai-preview';
+import { getRemoteConfig } from 'firebase/remote-config';
+import { getValue } from 'firebase/remote-config';
+import { fetchAndActivate } from 'firebase/remote-config';
 
 async function main() {
   const app = initializeApp(firebaseConfig);
 
   // Initialize App Check
-  // This line can be removed if you do not want to enable App Check for
-  // your project. App Check is recommended to limit unauthorized usage.
   initializeAppCheck(app, {
     provider: new ReCaptchaEnterpriseProvider(RECAPTCHA_ENTERPRISE_SITE_KEY),
   });
 
+  // Initialize Remote Config and get a reference to the service
+  const remoteConfig = getRemoteConfig(app);
+
+  // Set a minimum fetch interval
+  remoteConfig.settings.minimumFetchIntervalMillis = 0;
+
+  // Set default Remote Config parameter values
+  // For this example, these are set manually, but Firebase recommends
+  // downloading defaults and accessing them from a file as
+  // described at
+  // https://firebase.google.com/docs/remote-config/get-started?platform=web#default-parameter-in-app
+
+  remoteConfig.defaultConfig = {
+    model_name: 'gemini-1.5-flash-preview-0514',
+    prompt:
+      'Tell me why Remote Config is essential when developing apps with Vertex AI for Firebase SDKs!',
+  };
+
+  // Fetch and activate Remote Config
+  await fetchAndActivate(remoteConfig)
+    .then(() => {
+      console.log('Remote Config fetched.');
+    })
+    .catch((err) => {
+      console.error('Remote Config fetch failed', err);
+    });
+  const modelName = getValue(remoteConfig, 'model_name');
+  const prompt = getValue(remoteConfig, 'prompt');
+
+  console.log('prompt is:', prompt.asString());
   // Get VertexAI instance
   const vertexAI = getVertexAI(app);
   // Get a Gemini model
-  const model = getGenerativeModel(
-    vertexAI,
-    { model: "gemini-1.5-flash-preview-0514" }
-  );
+  const model = getGenerativeModel(vertexAI, { model: modelName.asString() });
   // Call generateContent with a string or Content(s)
-  const generateContentResult = await model.generateContent("what is a cat?");
+  const generateContentResult = await model.generateContent(prompt.asString());
   console.log(generateContentResult.response.text());
 }
 

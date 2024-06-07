@@ -26,6 +26,7 @@
     "format": "prettier --write ."
   },
   "dependencies": {
+    "@firebase/remote-config": "^0.4.7",
     "firebase": "^10.12.0"
   }
 }
